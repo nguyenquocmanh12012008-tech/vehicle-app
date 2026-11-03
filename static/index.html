@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nhận diện phương tiện giao thông</title>
+<meta name="description" content="Tải một ảnh đường phố, mô hình ResNet18 cho biết đó là xe đạp, xe buýt, ô tô, xe máy hay xe tải.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<script>document.documentElement.classList.add("js")</script>
+</head>
+<body>
+
+<header class="hero" id="dau-trang">
+  <div class="sheet">
+    <!--panel-->
+    <div class="panel">
+      <h1 class="wordmark">Nhận diện loại xe trong ảnh</h1>
+      <p class="panel-lead">Đưa ảnh có một chiếc xe, mô hình ResNet18 sẽ cho biết đó là xe đạp, xe buýt, ô tô, xe máy hay xe tải.</p>
+      <button type="button" class="button" data-pick="file-hero">Chọn ảnh để thử</button>
+      <input class="visually-hidden" type="file" id="file-hero" accept="image/*" data-file tabindex="-1">
+      <nav class="panel-links" aria-label="Trong trang">
+        <a href="#cach">Cách hoạt động</a>
+        <a href="#thu">Thử ngay</a>
+        <a href="#do-tu-tin">Độ tự tin</a>
+      </nav>
+    </div>
+    <!--/panel-->
+  </div>
+</header>
+
+<main>
+
+<section class="stages" id="cach" aria-labelledby="cach-h">
+  <h2 id="cach-h" class="head" data-reveal>Một tấm ảnh, bốn chặng</h2>
+  <div class="bar" data-ui>
+    <div class="seg seg-a" data-stage="upload" style="--grow:30"><p class="seg-time" data-time>Tuỳ tốc độ mạng</p></div>
+    <div class="seg seg-b" data-stage="preprocess" style="--grow:8"><p class="seg-time" data-time>Vài mili giây</p></div>
+    <div class="seg seg-c" data-stage="inference" style="--grow:40"><p class="seg-time" data-time>Vài chục mili giây</p></div>
+    <div class="seg seg-d" data-stage="softmax" style="--grow:1"><p class="seg-time" data-time>Dưới 1 mili giây</p></div>
+  </div>
+  <div class="clauses">
+    <p data-stage-clause="upload" style="--grow:30" data-reveal>Đầu tiên, ảnh đi từ máy bạn lên máy chủ.</p>
+    <p data-stage-clause="preprocess" style="--grow:8" data-reveal>Sau đó, ảnh được thu về 224 × 224 điểm ảnh.</p>
+    <p data-stage-clause="inference" style="--grow:40" data-reveal>Tiếp theo, ResNet18 với 11,2 triệu tham số đọc ảnh.</p>
+    <p data-stage-clause="softmax" style="--grow:1" data-reveal>Cuối cùng, softmax chia 100% cho năm loại xe.</p>
+  </div>
+  <p class="stages-note" data-stages-note data-reveal>Độ dài mỗi khúc là thời gian thật, đo lại mỗi lần bạn thử một ảnh.</p>
+</section>
+
+<section class="demo" id="thu" aria-labelledby="thu-h">
+  <div class="demo-intro">
+    <h2 id="thu-h" class="demo-head" data-reveal>Thử với ảnh của bạn</h2>
+    <p data-reveal>Kéo ảnh vào khung, hoặc chọn một ảnh có sẵn bên dưới. Kết quả tốt nhất khi ảnh chỉ có một chiếc xe, chụp rõ. Ảnh chỉ dùng để dự đoán, không được lưu lại.</p>
+  </div>
+  <div class="demo-panel" data-ui>
+    <div class="demo-view" data-drop>
+      <figure class="demo-figure" data-figure>
+        <img src="/assets/{{first_file}}" alt="Ảnh đang được nhận diện: {{first_alt}}" data-preview width="1920" height="1271">
+      </figure>
+      <p class="drop-hint" data-drop-hint>Thả ảnh vào đây</p>
+      <label class="demo-link" for="file-demo">Chọn ảnh khác</label>
+      <input class="visually-hidden" type="file" id="file-demo" accept="image/*" data-file>
+    </div>
+    <div class="demo-side" aria-live="polite">
+      <p class="verdict"><span data-verdict>{{first_label}}</span> <span class="verdict-pct" data-verdict-pct>{{first_pct}}%</span></p>
+      <ul class="rows" data-rows>
+        <li data-cls="bicycle"><span class="row-name">Xe đạp</span><span class="val">–</span><span class="meter"><span class="fill"></span></span></li>
+        <li data-cls="bus"><span class="row-name">Xe buýt</span><span class="val">–</span><span class="meter"><span class="fill"></span></span></li>
+        <li data-cls="car"><span class="row-name">Ô tô</span><span class="val">–</span><span class="meter"><span class="fill"></span></span></li>
+        <li data-cls="motorbike"><span class="row-name">Xe máy</span><span class="val">–</span><span class="meter"><span class="fill"></span></span></li>
+        <li data-cls="truck"><span class="row-name">Xe tải</span><span class="val">–</span><span class="meter"><span class="fill"></span></span></li>
+      </ul>
+      <p class="status" data-status>Ảnh {{first_caption}}, đọc khi máy chủ khởi động.</p>
+    </div>
+  </div>
+  <div class="samples">
+    <p data-reveal>Chưa có ảnh trong máy? Thử một trong những ảnh này:</p>
+    <div class="sample-row">{{samples}}</div>
+  </div>
+</section>
+
+<section class="confidence" id="do-tu-tin" aria-labelledby="tin-h">
+  <div class="confidence-text">
+    <p class="figure" data-reveal><span data-avg>{{avg}}</span>%</p>
+    <h2 id="tin-h" class="claim" data-reveal>Tự tin trung bình, đúng {{correct}}/{{count}} ảnh</h2>
+    <p class="confidence-note" data-reveal>Mỗi cột là một ảnh ở đầu trang, mỗi ảnh có đúng một chiếc xe, ba ảnh cho mỗi loại. Chiều cao cột là phần trăm mô hình dành cho câu trả lời của nó. Cột màu xanh là ảnh bạn vừa thử.</p>
+  </div>
+  <div class="doubts">
+    <h3 class="doubts-head" data-reveal>Ba ảnh mô hình kém chắc chắn nhất</h3>
+    <ul>{{doubts}}</ul>
+  </div>
+  <ol class="chart" data-ui data-chart aria-label="Độ tự tin của mô hình trên từng ảnh">{{chart}}</ol>
+</section>
+
+</main>
+
+<footer class="board" aria-labelledby="cuoi-h">
+  <div class="tile t-statement">
+    <h2 id="cuoi-h" class="tile-big">Đồ án phân loại phương tiện: ResNet18, năm lớp, huấn luyện trên Google Colab.</h2>
+    <p class="tile-small">Kết quả chỉ để tham khảo, mô hình vẫn có thể đọc sai.</p>
+  </div>
+  <nav class="tile t-nav" aria-label="Chân trang">
+    <ul>
+      <li><a href="#dau-trang">Đầu trang</a></li>
+      <li><a href="#cach">Cách hoạt động</a></li>
+      <li><a href="#thu">Thử ngay</a></li>
+      <li><a href="#do-tu-tin">Độ tự tin</a></li>
+      <li><a href="#anh">Nguồn ảnh</a></li>
+    </ul>
+  </nav>
+  <div class="tile t-time">
+    <p class="tile-small">Giờ Hà Nội</p>
+    <p class="tile-mid" data-clock>–</p>
+  </div>
+  <div class="tile t-model">
+    <p class="tile-small">Tệp mô hình</p>
+    <p class="tile-mid">best_model.pth</p>
+    <p class="tile-small">44,8 MB · 5 lớp · ảnh 224 × 224</p>
+  </div>
+  <div class="tile t-word"><p class="big-word">Nhận diện xe</p></div>
+  <a class="tile t-cta" href="#thu">
+    <span class="tile-mid">Thử thêm một ảnh</span>
+    <svg viewBox="0 0 48 48" width="56" height="56" aria-hidden="true"><path d="M10 38 38 10M16 10h22v22" fill="none" stroke="currentColor" stroke-width="4"/></svg>
+  </a>
+  <div class="tile t-credits" id="anh">
+    <p class="credits-head">Ảnh trên trang, tất cả qua Wikimedia Commons</p>
+    <ul class="credits">{{credits}}</ul>
+  </div>
+</footer>
+
+<script src="/static/main.js" defer></script>
+</body>
+</html>
