@@ -7,6 +7,7 @@ Chạy:  python build_static.py
 """
 import json
 import os
+import re
 import shutil
 
 import app
@@ -48,7 +49,8 @@ def build():
         f'<script src="{ORT_CDN}ort.min.js"></script>\n'
         f"<script>window.VEHICLE_MODEL = {json.dumps(config, ensure_ascii=False)};</script>\n"
     )
-    page = page.replace('<script src="/static/main.js" defer></script>', head + '<script src="/static/main.js" defer></script>')
+    main_js = re.search(r'<script src="/static/main\.js[^"]*" defer></script>', page).group(0)
+    page = page.replace(main_js, head + main_js)
     with open(os.path.join(SITE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
 

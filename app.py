@@ -1,3 +1,4 @@
+import hashlib
 import html
 import io
 import json
@@ -210,10 +211,18 @@ def render_frame(name, n, panel_html):
     )
 
 
+def file_version(name):
+    with open(os.path.join(STATIC_DIR, name), "rb") as f:
+        return hashlib.sha1(f.read()).hexdigest()[:10]
+
+
 def render_index():
     # Điền kết quả đọc ảnh vào trang ngay trên máy chủ, để trang vẫn đủ nội dung khi không có JavaScript
     with open(os.path.join(STATIC_DIR, "index.html"), encoding="utf-8") as f:
         page = f.read()
+    # Gắn mã phiên bản theo nội dung file, để trình duyệt tải CSS/JS mới mỗi khi chúng thay đổi
+    for name in ("style.css", "main.js"):
+        page = page.replace(f'"/static/{name}"', f'"/static/{name}?v={file_version(name)}"')
     start, end = page.index("<!--panel-->"), page.index("<!--/panel-->")
     panel_html = page[start:end]
     cols, n = [], 0
