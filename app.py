@@ -85,6 +85,7 @@ torch.set_num_threads(1)
 model = VehicleNet(len(CLASSES))
 model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu", weights_only=True))
 model.eval()
+model.requires_grad_(False)
 
 tf = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -101,13 +102,28 @@ def classify(img):
     img.thumbnail((448, 448))
     x = tf(img).unsqueeze(0)
     t1 = time.perf_counter()
-    with torch.no_grad():
-        logits = model(x)
+    # Giữ lại đầu ra của layer4 (512 × 7 × 7) để tính Grad-CAM từ cùng một lượt chạy.
+    # Cắt đồ thị tại đây: chỉ phần sau layer4 cần gradient, nên phần backbone không tốn thêm RAM.
+    acts = {}
+
+    def keep_layer4(module, inputs, output):
+        acts["a"] = output.detach().requires_grad_(True)
+        return acts["a"]
+
+    hook = model.backbone.layer4.register_forward_hook(keep_layer4)
+    try:
+        with torch.enable_grad():
+            logits = model(x)
+    finally:
+        hook.remove()
     t2 = time.perf_counter()
-    probs = torch.softmax(logits, dim=1)[0].tolist()
+    probs = torch.softmax(logits.detach(), dim=1)[0].tolist()
     t3 = time.perf_counter()
     top = max(range(len(CLASSES)), key=lambda i: probs[i])
+    cam = grad_cam(logits, acts["a"], top)
+    t4 = time.perf_counter()
     return {
+        "cam": cam,
         "label": CLASSES[top],
         "label_vi": LABELS_VI[CLASSES[top]],
         "confidence": probs[top],
@@ -119,8 +135,22 @@ def classify(img):
             "preprocess": (t1 - t0) * 1000,
             "inference": (t2 - t1) * 1000,
             "softmax": (t3 - t2) * 1000,
+            "gradcam": (t4 - t3) * 1000,
         },
     }
+
+
+def grad_cam(logits, acts, class_idx):
+    """Grad-CAM: trọng số mỗi kênh = trung bình gradient của điểm lớp theo kênh đó.
+
+    Trả về lưới 7 × 7 (danh sách hàng), giá trị 0–1; trình duyệt phóng lưới này lên thành bản đồ nhiệt.
+    """
+    grads = torch.autograd.grad(logits[0, class_idx], acts)[0]
+    weights = grads.mean(dim=(2, 3), keepdim=True)
+    cam = torch.relu((weights * acts).sum(dim=1))[0].detach()
+    if cam.max() > 0:
+        cam = cam / cam.max()
+    return [[round(v, 3) for v in row] for row in cam.tolist()]
 
 
 def read_gallery():
@@ -174,7 +204,8 @@ def render_frame(name, n, panel_html):
         reading = f'<b>Đọc nhầm: {html.escape(r["label_vi"])} {pct}%</b> thật ra là {html.escape(r["truth_vi"].lower())}'
     return (
         f'<figure class="frame" style="--r:{w}/{h}" data-n="{n}">'
-        f'<img src="/assets/{name}" alt="{html.escape(r["alt"])}" width="{w}" height="{h}"{loading}>'
+        f'<div class="media"><img src="/assets/{name}" alt="{html.escape(r["alt"])}" width="{w}" height="{h}"{loading}>'
+        f'<canvas class="cam" data-cam="{json.dumps(r["cam"])}" data-aspect="{w / h:.4f}" aria-hidden="true"></canvas></div>'
         f'<figcaption class="strip s{n % 4 + 1}">{reading}</figcaption></figure>'
     )
 

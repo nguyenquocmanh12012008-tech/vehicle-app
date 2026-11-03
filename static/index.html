@@ -22,6 +22,7 @@
       <button type="button" class="button" data-pick="file-hero">Chọn ảnh để thử</button>
       <input class="visually-hidden" type="file" id="file-hero" accept="image/*" data-file tabindex="-1">
       <nav class="panel-links" aria-label="Trong trang">
+        <button type="button" class="cam-toggle" aria-pressed="false" data-hero-cam>Hiện Grad-CAM trên ảnh</button>
         <a href="#cach">Cách hoạt động</a>
         <a href="#thu">Thử ngay</a>
         <a href="#do-tu-tin">Độ tự tin</a>
@@ -59,6 +60,7 @@
     <div class="demo-view" data-drop>
       <figure class="demo-figure" data-figure>
         <img src="/assets/{{first_file}}" alt="Ảnh đang được nhận diện: {{first_alt}}" data-preview width="1920" height="1271">
+        <canvas class="cam" data-demo-cam aria-hidden="true"></canvas>
       </figure>
       <p class="drop-hint" data-drop-hint>Thả ảnh vào đây</p>
       <label class="demo-link" for="file-demo">Chọn ảnh khác</label>
@@ -73,6 +75,11 @@
         <li data-cls="motorbike"><span class="row-name">Xe máy</span><span class="val">–</span><span class="meter"><span class="fill"></span></span></li>
         <li data-cls="truck"><span class="row-name">Xe tải</span><span class="val">–</span><span class="meter"><span class="fill"></span></span></li>
       </ul>
+      <div class="cam-controls" data-cam-controls>
+        <label class="control-row"><span>Grad-CAM</span><input type="checkbox" checked data-cam-on></label>
+        <label class="control-row"><span>Độ đậm</span><input type="range" min="10" max="100" value="75" data-cam-opacity></label>
+        <p class="cam-note" data-cam-note>Vùng càng đỏ là nơi mô hình càng dựa vào để chọn <b data-cam-label>{{first_label}}</b>.</p>
+      </div>
       <p class="status" data-status>Ảnh {{first_caption}}, đọc khi máy chủ khởi động.</p>
     </div>
   </div>

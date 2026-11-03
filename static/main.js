@@ -10,7 +10,7 @@
   $$(".col", hero).forEach((col, c) => {
     $$(".frame, .panel", col).forEach((el, r) => {
       el.style.setProperty("--d", `${c * 70 + r * 90}ms`);
-      el.querySelector("img")?.style.setProperty("--drift", `${-(c * 3 + r * 5)}s`);
+      el.querySelector(".media")?.style.setProperty("--drift", `${-(c * 3 + r * 5)}s`);
     });
   });
   requestAnimationFrame(() => hero.classList.add("in"));
@@ -81,6 +81,56 @@
     });
   }
 
+  /* ---------- Grad-CAM: phóng lưới 7 × 7 thành bản đồ nhiệt phủ lên ảnh ---------- */
+  // Thang màu: giá trị thấp trong suốt, lên dần vàng rồi đỏ
+  const CAM_STOPS = [
+    [0, [37, 111, 130, 0]],
+    [0.35, [37, 111, 130, 0.18]],
+    [0.6, [255, 196, 0, 0.55]],
+    [1, [220, 38, 38, 0.85]],
+  ];
+  function camColor(t) {
+    for (let i = 1; i < CAM_STOPS.length; i++) {
+      const [t1, c1] = CAM_STOPS[i];
+      const [t0, c0] = CAM_STOPS[i - 1];
+      if (t <= t1) {
+        const k = (t - t0) / (t1 - t0);
+        return c0.map((v, j) => v + (c1[j] - v) * k);
+      }
+    }
+    return CAM_STOPS[CAM_STOPS.length - 1][1];
+  }
+
+  function drawCam(canvas, cam, aspect) {
+    const rows = cam.length;
+    const cols = cam[0].length;
+    const small = document.createElement("canvas");
+    small.width = cols;
+    small.height = rows;
+    const sctx = small.getContext("2d");
+    const img = sctx.createImageData(cols, rows);
+    cam.forEach((row, y) => row.forEach((v, x) => {
+      const [r, g, b, a] = camColor(v);
+      img.data.set([r, g, b, Math.round(a * 255)], (y * cols + x) * 4);
+    }));
+    sctx.putImageData(img, 0, 0);
+    // Mô hình nhìn ảnh đã bị ép về hình vuông, nên lưới được kéo giãn theo đúng tỉ lệ ảnh gốc
+    canvas.width = 320;
+    canvas.height = Math.max(1, Math.round(320 / aspect));
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(small, 0, 0, canvas.width, canvas.height);
+  }
+
+  $$(".hero canvas.cam").forEach((c) => drawCam(c, JSON.parse(c.dataset.cam), Number(c.dataset.aspect)));
+  const heroCamBtn = $("[data-hero-cam]");
+  heroCamBtn.addEventListener("click", () => {
+    const on = hero.classList.toggle("show-cam");
+    heroCamBtn.setAttribute("aria-pressed", String(on));
+    heroCamBtn.textContent = on ? "Ẩn Grad-CAM" : "Hiện Grad-CAM trên ảnh";
+  });
+
   /* ---------- Bảng thử trực tiếp ---------- */
   const view = $("[data-drop]");
   const figure = $("[data-figure]");
@@ -88,7 +138,31 @@
   const status = $("[data-status]");
   const rows = Object.fromEntries($$("[data-rows] li").map((li) => [li.dataset.cls, li]));
 
+  const demoCam = $("[data-demo-cam]");
+  const camControls = $("[data-cam-controls]");
+  const camOn = $("[data-cam-on]");
+  const camOpacity = $("[data-cam-opacity]");
+  const applyCamControls = () => {
+    figure.style.setProperty("--cam-opacity", camOn.checked ? camOpacity.value / 100 : 0);
+    camOpacity.disabled = !camOn.checked;
+  };
+  camOn.addEventListener("change", applyCamControls);
+  camOpacity.addEventListener("input", applyCamControls);
+  applyCamControls();
+
+  function showCam(r) {
+    // Bản tĩnh (ONNX) chỉ có điểm số, không có gradient, nên ẩn phần Grad-CAM
+    camControls.hidden = !r.cam;
+    demoCam.hidden = !r.cam;
+    if (!r.cam) return;
+    const aspect = (preview.naturalWidth || 4) / (preview.naturalHeight || 3);
+    drawCam(demoCam, r.cam, aspect);
+    $("[data-cam-label]").textContent = r.label_vi;
+  }
+
   function showResult(r) {
+    if (preview.complete) showCam(r);
+    else preview.addEventListener("load", () => showCam(r), { once: true });
     $("[data-verdict]").textContent = r.label_vi;
     $("[data-verdict-pct]").textContent = pct(r.confidence);
     r.probs.forEach(({ label, p }) => {
@@ -271,6 +345,7 @@
     status.textContent = "Đang đọc ảnh…";
     view.classList.add("is-loading");
 
+    demoCam.hidden = true;
     const url = URL.createObjectURL(file);
     preview.src = url;
     preview.alt = alt || `Ảnh đang được nhận diện: ${name}`;
@@ -283,6 +358,7 @@
       setStages(data.timings_ms);
       const total = Object.values(data.timings_ms).reduce((a, b) => a + b, 0);
       status.textContent = `${name}: đọc xong sau ${Math.round(total)} mili giây.`;
+      if (data.cam) status.textContent += ` Grad-CAM mất ${ms(data.timings_ms.gradcam).toLowerCase()}.`;
     } catch (err) {
       status.textContent = err.message || "Có lỗi, hãy thử lại.";
       status.classList.add("is-error");
